@@ -7,15 +7,12 @@ import math
 import numpy as np
 import torch
 from torch import nn
-import torch.nn.functional as F
 from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 from pytorch_pretrained_bert.modeling import (CONFIG_NAME, WEIGHTS_NAME, BertConfig, BertPreTrainedModel, BertModel)
-from pytorch_pretrained_bert.optimization import BertAdam, WarmupLinearSchedule
 from pytorch_pretrained_bert.tokenization import BertTokenizer
 
 import pytorch_pretrained_zen as zen
 
-from torch.nn import CrossEntropyLoss
 from pytorch_pretrained_bert.crf import CRF
 
 

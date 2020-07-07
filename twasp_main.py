@@ -14,10 +14,10 @@ from pytorch_pretrained_bert.optimization import BertAdam, WarmupLinearSchedule
 
 from tqdm import tqdm, trange
 from seqeval.metrics import classification_report
-from joint_helper import get_word2id, getlabels, request_features_from_stanford, request_features_from_berkeley, \
+from twasp_helper import get_word2id, getlabels, request_features_from_stanford, request_features_from_berkeley, \
     berkeley_feature_processor, stanford_feature_processor, get_feature2id
-from joint_eval import eval_sentence, pos_evaluate_word_PRF, pos_evaluate_OOV
-from joint_model import TwASP
+from twasp_eval import eval_sentence, pos_evaluate_word_PRF, pos_evaluate_OOV
+from twasp_model import TwASP
 import datetime
 
 

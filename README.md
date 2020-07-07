@@ -4,6 +4,22 @@ This is the implementation of [Joint Chinese Word Segmentation and Part-of-speec
 
 We will keep updating this repository these days.
 
+## Citation
+
+If you use or extend our work, please cite our paper at ACL2020.
+
+```
+@inproceedings{tian-etal-2020-improving,
+    title = "Improving {C}hinese Word Segmentation with Wordhood Memory Networks",
+    author = "Tian, Yuanhe and Song, Yan and Xia, Fei and Zhang, Tong and Wang, Yonggang",
+    booktitle = "Proceedings of the 58th Annual Meeting of the Association for Computational Linguistics",
+    month = jul,
+    year = "2020",
+    address = "Online",
+    pages = "8274--8285",
+}
+```
+
 ## Requirements
 
 Our code works with the following environment.
@@ -20,15 +36,15 @@ For ZEN, you can download the pre-trained model form [here](https://github.com/s
 
 ## Run on Sample Data
 
-Run `run_sample.sh` to train a model on the small sample data under the `sample_data` directory.
+Run `run_sample.sh` to train a model on the small sample data under the `sample_data` folder.
 
 ## Datasets
 
 We use [CTB5](https://catalog.ldc.upenn.edu/LDC2005T01), [CTB6](https://catalog.ldc.upenn.edu/LDC2007T36), [CTB7](https://catalog.ldc.upenn.edu/LDC2010T07), [CTB9](https://catalog.ldc.upenn.edu/LDC2016T13), and [Universal Dependencies 2.4](https://lindat.mff.cuni.cz/repository/xmlui/handle/11234/1-2988) (UD) in our paper.
 
-To obtain and pre-process the data, please go to `data_preprocessing` directory and run `getdata.sh` under that directory. This script will download and process the official data from UD. For CTB5 (LDC05T01), CTB6 (LDC07T36), CTB7 (LDC10T07), and CTB9 (LDC2016T13), you need to obtain the official data yourself, and then put the raw data directory under the `data_preprocessing` directory.
+To obtain and pre-process the data, you can go to `data_preprocessing` directory and run `getdata.sh`. This script will download and process the official data from UD. For CTB5 (LDC05T01), CTB6 (LDC07T36), CTB7 (LDC10T07), and CTB9 (LDC2016T13), you need to obtain the official data yourself, and then put the raw data directory under the `data_preprocessing` directory.
 
-The script will also download the [Stanford CoreNLP Toolkit v3.9.2](https://stanfordnlp.github.io/CoreNLP/history.html) (SCT) and [Berkeley Neural Parser](https://github.com/nikitakit/self-attentive-parser) (BNP) to obtain the auto-analyzed syntactic knowledge. You can refer to their cite for more information.
+The script will also download the [Stanford CoreNLP Toolkit v3.9.2](https://stanfordnlp.github.io/CoreNLP/history.html) (SCT) and [Berkeley Neural Parser](https://github.com/nikitakit/self-attentive-parser) (BNP) to obtain the auto-analyzed syntactic knowledge. You can refer to their website for more information.
 
 All processed data will appear in `data` directory organized by the datasets, where each of them contains the files with the same file names under the `sample_data` directory.
 

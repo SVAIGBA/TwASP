@@ -1,4 +1,4 @@
-from joint_helper import request_features_from_stanford, request_features_from_berkeley
+from twasp_helper import request_features_from_stanford, request_features_from_berkeley
 import argparse
 import os
 
