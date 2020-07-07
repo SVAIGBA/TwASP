@@ -5,18 +5,14 @@ import json
 import logging
 import os
 import random
-import re
-import subprocess
 from os import path
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 
 from pytorch_pretrained_bert.optimization import BertAdam, WarmupLinearSchedule
 
 from tqdm import tqdm, trange
-from torch.nn import CrossEntropyLoss
 from seqeval.metrics import classification_report
 from joint_helper import get_word2id, getlabels, request_features_from_stanford, request_features_from_berkeley, \
     berkeley_feature_processor, stanford_feature_processor, get_feature2id
@@ -341,13 +337,13 @@ def train(args):
                             torch.save({
                                 'spec': joint_model.module.spec,
                                 'state_dict': joint_model.module.state_dict(),
-                                'trainer': optimizer.state_dict(),
+                                # 'trainer': optimizer.state_dict(),
                             }, best_eval_model_path)
                         else:
                             torch.save({
                                 'spec': joint_model.spec,
                                 'state_dict': joint_model.state_dict(),
-                                'trainer': optimizer.state_dict(),
+                                # 'trainer': optimizer.state_dict(),
                             }, best_eval_model_path)
                 else:
                     num_of_no_improvement += 1

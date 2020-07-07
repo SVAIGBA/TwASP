@@ -1,14 +1,9 @@
 import argparse
 import re
-import numpy as np
-import json
 from tqdm import tqdm
 import os
 from os import path
 from collections import defaultdict
-from math import log
-import operator
-import pandas as pd
 from corenlp import StanfordCoreNLP
 from nltk.tree import Tree
 import json
@@ -16,12 +11,9 @@ import copy
 import benepar
 import nltk
 
-DATA_DIR = './data/POS'
-STANFORD_NLP_MODEL_DIR = '/data1/yhtian/stanfordnlp_resources/'
-# FULL_MODEL = '../stanford_nlp/stanford-corenlp-full-2018-10-05'
-FULL_MODEL = '/home/tianyuanhe/stanford_nlp/stanford-corenlp-full-2018-10-05'
-punctuation = ['。', '，', '、', '：', '？', '！', '（', '）', '“', '”', '【', '】']
+FULL_MODEL = './data_preprocessing/stanford-corenlp-full-2018-10-05'
 
+# The 12 labels follows https://www.aclweb.org/anthology/P06-2013/
 chunk_pos = ['ADJP', 'ADVP', 'CLP', 'DNP', 'DP', 'DVP', 'LCP', 'LST', 'NP', 'PP', 'QP', 'VP']
 
 
@@ -46,12 +38,6 @@ def read_tsv(file_path):
             label = items[-1]
             sentence.append(character)
             labels.append(label)
-
-            # if character in ['，', '。', '？', '！', '：', '；', '（', '）', '、'] and len(sentence) > 64:
-            #     sentence_list.append(sentence)
-            #     label_list.append(labels)
-            #     sentence = []
-            #     labels = []
 
     return sentence_list, label_list
 
@@ -114,10 +100,10 @@ def merge_results(results):
 def request_features_from_stanford(data_path, flag):
     data_dir = data_path[:data_path.rfind('/')]
     if os.path.exists(path.join(data_dir, flag + '.stanford.json')):
-        print('The Stanford data file already exists!')
+        print('The Stanford data file for %s already exists!' % str(data_path))
         return None
 
-    print('Requesting Stanford results now')
+    print('Requesting Stanford results for %s' % str(data_path))
 
     all_sentences, _ = read_tsv(data_path)
     sentences_str = []
@@ -142,15 +128,15 @@ def request_features_from_berkeley(data_path, flag):
     data_dir = data_path[:data_path.rfind('/')]
 
     if not os.path.exists(path.join(data_dir, flag + '.stanford.json')):
-        print('Do not find the Stanford data file\nRequesting Stanford segmentation results')
+        print('Do not find the Stanford data file\nRequesting Stanford segmentation results for %s' % str(data_path))
         request_features_from_stanford(data_path, flag)
     else:
-        print('The Stanford data file already exists!')
+        print('The Stanford data file for %s already exists!' % str(data_path))
     if os.path.exists(path.join(data_dir, flag + '.berkeley.json')):
-        print('The Berkeley data file already exists!')
+        print('The Berkeley data file for %s already exists!' % str(data_path))
         return None
 
-    print('Requesting Berkeley results now')
+    print('Requesting Berkeley results for %s' % str(data_path))
 
     berkeley_parser = benepar.Parser("benepar_zh")
 
