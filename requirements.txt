@@ -1,0 +1,12 @@
+pytorch == 1.1.0
+tensorflow-gpu==1.13.1
+tqdm
+nltk
+pandas
+boto3
+requests
+regex
+seqeval
+psutil
+cython
+benepar[cpu]

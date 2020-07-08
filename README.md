@@ -26,6 +26,18 @@ Our code works with the following environment.
 * `python=3.6`
 * `pytorch=1.1`
 
+To run [Stanford CoreNLP Toolkit](https://stanfordnlp.github.io/CoreNLP/cmdline.html), you need 
+* `Java 8`
+
+To run [Berkeley Neural Parser](https://github.com/nikitakit/self-attentive-parser), you need
+* `tensorfolw==1.13.1`
+* `benepar[cpu]`
+* `cython`
+
+Note that Berkeley Neural Parser does not support `TensorFlow 2.0`.
+
+You can refer to their websites for more information.
+
 ## Downloading BERT and ZEN
 
 In our paper, we use BERT ([paper](https://www.aclweb.org/anthology/N19-1423/)) and ZEN ([paper](https://arxiv.org/abs/1911.00720)) as the encoder.

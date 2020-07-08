@@ -1,6 +1,7 @@
 ############## process data ##############
 
 # download Universal Dependencies 2.4
+# If this step fails, you can manually download the file and put it under this directory
 wget https://lindat.mff.cuni.cz/repository/xmlui/bitstream/handle/11234/1-2988/ud-treebanks-v2.4.tgz
 
 tar zxvf ud-treebanks-v2.4.tgz
