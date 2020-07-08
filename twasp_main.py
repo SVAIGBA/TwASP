@@ -26,8 +26,8 @@ def train(args):
     if args.use_bert and args.use_zen:
         raise ValueError('We cannot use both BERT and ZEN')
 
-    if not os.path.exists('./logs/'):
-        os.mkdir('./logs')
+    if not os.path.exists('./logs'):
+        os.mkdir('logs')
 
     now_time = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
     log_file_name = './logs/log-' + now_time
@@ -88,12 +88,12 @@ def train(args):
 
     if args.use_attention:
         if args.source == 'stanford':
-            request_features_from_stanford(args.train_data_path, flag='train')
-            request_features_from_stanford(args.eval_data_path, flag='test')
+            request_features_from_stanford(args.train_data_path)
+            request_features_from_stanford(args.eval_data_path)
             processor = stanford_feature_processor()
         elif args.source == 'berkeley':
-            request_features_from_berkeley(args.train_data_path, flag='train')
-            request_features_from_berkeley(args.eval_data_path, flag='test')
+            request_features_from_berkeley(args.train_data_path)
+            request_features_from_berkeley(args.eval_data_path)
             processor = berkeley_feature_processor()
         else:
             raise ValueError('Source must be one of \'stanford\' or \'berkeley\' if attentions are used.')
@@ -103,12 +103,14 @@ def train(args):
         gram2id = None
         feature2id = None
 
-    joint_model = TwASP(word2id, gram2id, feature2id, label_map, processor, args)
+    hpara = TwASP.init_hyper_parameters(args)
+    joint_model = TwASP(word2id, gram2id, feature2id, label_map, processor, hpara, args)
 
-    train_examples = joint_model.load_data(args.train_data_path, flag='train')
-    eval_examples = joint_model.load_data(args.eval_data_path, flag='test')
+    train_examples = joint_model.load_data(args.train_data_path)
+    eval_examples = joint_model.load_data(args.eval_data_path)
     num_labels = joint_model.num_labels
     convert_examples_to_features = joint_model.convert_examples_to_features
+    feature2input = joint_model.feature2input
 
     total_params = sum(p.numel() for p in joint_model.parameters() if p.requires_grad)
     logger.info('# of trainable parameters: %d' % total_params)
@@ -194,7 +196,7 @@ def train(args):
                     continue
                 train_features = convert_examples_to_features(batch_examples)
                 feature_ids, input_ids, input_mask, l_mask, label_ids, ngram_ids, ngram_positions, \
-                segment_ids, valid_ids, word_ids, word_matching_matrix = feature2input(args, device, train_features)
+                segment_ids, valid_ids, word_ids, word_matching_matrix = feature2input(device, train_features)
 
                 loss, _ = joint_model(input_ids, segment_ids, input_mask, label_ids, valid_ids, l_mask, word_ids,
                                       feature_ids, word_matching_matrix, word_matching_matrix, ngram_ids, ngram_positions)
@@ -237,7 +239,7 @@ def train(args):
                     eval_features = convert_examples_to_features(eval_batch_examples)
 
                     feature_ids, input_ids, input_mask, l_mask, label_ids, ngram_ids, ngram_positions, \
-                    segment_ids, valid_ids, word_ids, word_matching_matrix = feature2input(args, device, eval_features)
+                    segment_ids, valid_ids, word_ids, word_matching_matrix = feature2input(device, eval_features)
 
                     with torch.no_grad():
                         _, tag_seq = joint_model(input_ids, segment_ids, input_mask, label_ids, valid_ids, l_mask,
@@ -365,48 +367,6 @@ def train(args):
                 f.write('\n')
 
 
-def feature2input(args, device, feature):
-    all_input_ids = torch.tensor([f.input_ids for f in feature], dtype=torch.long)
-    all_input_mask = torch.tensor([f.input_mask for f in feature], dtype=torch.long)
-    all_segment_ids = torch.tensor([f.segment_ids for f in feature], dtype=torch.long)
-    all_label_ids = torch.tensor([f.label_id for f in feature], dtype=torch.long)
-    all_valid_ids = torch.tensor([f.valid_ids for f in feature], dtype=torch.long)
-    all_lmask_ids = torch.tensor([f.label_mask for f in feature], dtype=torch.long)
-
-    input_ids = all_input_ids.to(device)
-    input_mask = all_input_mask.to(device)
-    segment_ids = all_segment_ids.to(device)
-    label_ids = all_label_ids.to(device)
-    valid_ids = all_valid_ids.to(device)
-    l_mask = all_lmask_ids.to(device)
-    if args.use_attention:
-        all_word_ids = torch.tensor([f.word_ids for f in feature], dtype=torch.long)
-        all_feature_ids = torch.tensor([f.syn_feature_ids for f in feature], dtype=torch.long)
-        all_word_matching_matrix = torch.tensor([f.word_matching_matrix for f in feature],
-                                                dtype=torch.float)
-
-        word_ids = all_word_ids.to(device)
-        feature_ids = all_feature_ids.to(device)
-        word_matching_matrix = all_word_matching_matrix.to(device)
-    else:
-        word_ids = None
-        feature_ids = None
-        word_matching_matrix = None
-    if args.use_zen:
-        all_ngram_ids = torch.tensor([f.ngram_ids for f in feature], dtype=torch.long)
-        all_ngram_positions = torch.tensor([f.ngram_positions for f in feature], dtype=torch.long)
-        # all_ngram_lengths = torch.tensor([f.ngram_lengths for f in train_features], dtype=torch.long)
-        # all_ngram_seg_ids = torch.tensor([f.ngram_seg_ids for f in train_features], dtype=torch.long)
-        # all_ngram_masks = torch.tensor([f.ngram_masks for f in train_features], dtype=torch.long)
-
-        ngram_ids = all_ngram_ids.to(device)
-        ngram_positions = all_ngram_positions.to(device)
-    else:
-        ngram_ids = None
-        ngram_positions = None
-    return feature_ids, input_ids, input_mask, l_mask, label_ids, ngram_ids, ngram_positions, segment_ids, valid_ids, word_ids, word_matching_matrix
-
-
 def test(args):
 
     if args.local_rank == -1 or args.no_cuda:
@@ -422,21 +382,23 @@ def test(args):
         device, n_gpu, bool(args.local_rank != -1), args.fp16))
 
     joint_model_checkpoint = torch.load(args.eval_model)
-    joint_model = TwASP.from_spec(joint_model_checkpoint['spec'], joint_model_checkpoint['state_dict'])
+    joint_model = TwASP.from_spec(joint_model_checkpoint['spec'], joint_model_checkpoint['state_dict'], args)
 
     if joint_model.use_attention:
-        if joint_model.spec['args'].source == 'stanford':
-            request_features_from_stanford(args.eval_data_path, flag='test')
-        elif joint_model.spec['args'].source == 'berkeley':
-            request_features_from_berkeley(args.eval_data_path, flag='test')
+        if joint_model.source == 'stanford':
+            request_features_from_stanford(args.eval_data_path)
+        elif joint_model.source == 'berkeley':
+            request_features_from_berkeley(args.eval_data_path)
         else:
-            raise ValueError('Source must be one of \'stanford\' or \'berkeley\' if attentions are used.')
+            raise ValueError('Invalid source $s. '
+                             'Source must be one of \'stanford\' or \'berkeley\' if attentions are used.'
+                             % joint_model.source)
 
-    eval_examples = joint_model.load_data(args.eval_data_path, flag='test')
+    eval_examples = joint_model.load_data(args.eval_data_path)
     convert_examples_to_features = joint_model.convert_examples_to_features
+    feature2input = joint_model.feature2input
     num_labels = joint_model.num_labels
     word2id = joint_model.word2id
-    model_args = joint_model.spec['args']
     label_map = {v: k for k, v in joint_model.labelmap.items()}
     label_map[0] = 'O'
 
@@ -457,8 +419,6 @@ def test(args):
     joint_model.to(device)
 
     joint_model.eval()
-    eval_loss, eval_accuracy = 0, 0
-    nb_eval_steps, nb_eval_examples = 0, 0
     y_true = []
     y_pred = []
 
@@ -468,7 +428,7 @@ def test(args):
         eval_features = convert_examples_to_features(eval_batch_examples)
 
         feature_ids, input_ids, input_mask, l_mask, label_ids, ngram_ids, ngram_positions, \
-        segment_ids, valid_ids, word_ids, word_matching_matrix = feature2input(model_args, device, eval_features)
+        segment_ids, valid_ids, word_ids, word_matching_matrix = feature2input(device, eval_features)
 
         with torch.no_grad():
             _, tag_seq = joint_model(input_ids, segment_ids, input_mask, label_ids, valid_ids, l_mask,
@@ -520,7 +480,7 @@ def test(args):
 
 
 def predict(args):
-
+    # In progressing
     return None
 
 

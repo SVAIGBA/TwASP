@@ -42,14 +42,14 @@ if __name__ == '__main__':
             if os.path.exists(out_file) and not args.overwrite:
                 print('File already exists: %s' % str(out_file))
                 continue
-            request_features_from_stanford(input_file, flag)
+            request_features_from_stanford(input_file)
 
         elif args.toolkit == 'BNP':
             out_file = os.path.join(input_dir, flag + '.berkeley.json')
             if os.path.exists(out_file) and not args.overwrite:
                 print('File already exists: %s' % str(out_file))
                 continue
-            request_features_from_berkeley(input_file, flag)
+            request_features_from_berkeley(input_file)
         else:
             raise ValueError('Invalid type of toolkit name: %s. Should be one of \'SCT\' and \'BNP\'.' % args.toolkit)
 

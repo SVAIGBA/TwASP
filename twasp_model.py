@@ -15,6 +15,16 @@ import pytorch_pretrained_zen as zen
 
 from pytorch_pretrained_bert.crf import CRF
 
+DEFAULT_HPARA = {
+    'max_seq_length': 128,
+    'max_ngram_size': 128,
+    'use_bert': False,
+    'use_zen': False,
+    'do_lower_case': False,
+    'use_attention': False,
+    'feature_flag': 'pos',
+    'source': 'stanford',
+}
 
 class Attention(nn.Module):
     def __init__(self, hidden_size, word_size):
@@ -23,7 +33,6 @@ class Attention(nn.Module):
         self.word_embedding = nn.Embedding(word_size, hidden_size, padding_idx=0)
 
     def forward(self, word_seq, hidden_state, word_mask_matrix):
-
         batch_size, character_seq_len, _ = hidden_state.shape
 
         embedding = self.word_embedding(word_seq)
@@ -46,25 +55,28 @@ class Attention(nn.Module):
 
 class TwASP(nn.Module):
 
-    def __init__(self, word2id, gram2id, feature2id, labelmap, processor, args):
+    def __init__(self, word2id, gram2id, feature2id, labelmap, processor, hpara, args):
         super().__init__()
         self.spec = locals()
         self.spec.pop("self")
         self.spec.pop("__class__")
-        self.spec['args'] = args
+        self.spec.pop('args')
         self.word2id = word2id
 
-        self.max_seq_length = args.max_seq_length
-        self.max_ngram_size = args.max_ngram_size
-        self.use_attention = args.use_attention
+        self.hpara = hpara
+        self.max_seq_length = self.hpara['max_seq_length']
+        self.max_ngram_size = self.hpara['max_ngram_size']
+        self.use_attention = self.hpara['use_attention']
 
         self.gram2id = gram2id
         self.feature2id = feature2id
         self.feature_processor = processor
 
-        if args.use_attention:
-            self.feature_flag = args.feature_flag
+        if self.hpara['use_attention']:
+            self.source = self.hpara['source']
+            self.feature_flag = self.hpara['feature_flag']
         else:
+            self.source = None
             self.feature_flag = None
 
         self.labelmap = labelmap
@@ -76,25 +88,39 @@ class TwASP(nn.Module):
         self.zen = None
         self.zen_ngram_dict = None
 
-        if args.use_bert:
-            cache_dir = args.cache_dir if args.cache_dir else os.path.join(str(PYTORCH_PRETRAINED_BERT_CACHE),
-                                                                           'distributed_{}'.format(args.local_rank))
-            self.bert_tokenizer = BertTokenizer.from_pretrained(args.bert_model, do_lower_case=args.do_lower_case)
-            self.bert = BertModel.from_pretrained(args.bert_model, cache_dir=cache_dir)
+        if self.hpara['use_bert']:
+            if args.do_train:
+                cache_dir = args.cache_dir if args.cache_dir else os.path.join(str(PYTORCH_PRETRAINED_BERT_CACHE),
+                                                                               'distributed_{}'.format(args.local_rank))
+                self.bert_tokenizer = BertTokenizer.from_pretrained(args.bert_model, do_lower_case=self.hpara['do_lower_case'])
+                self.bert = BertModel.from_pretrained(args.bert_model, cache_dir=cache_dir)
+                self.hpara['bert_tokenizer'] = self.bert_tokenizer
+                self.hpara['config'] = self.bert.config
+            else:
+                self.bert_tokenizer = self.hpara['bert_tokenizer']
+                self.bert = BertModel(self.hpara['config'])
             hidden_size = self.bert.config.hidden_size
             self.dropout = nn.Dropout(self.bert.config.hidden_dropout_prob)
-        elif args.use_zen:
-            cache_dir = args.cache_dir if args.cache_dir else os.path.join(str(zen.PYTORCH_PRETRAINED_BERT_CACHE),
-                                                                           'distributed_{}'.format(args.local_rank))
-            self.zen_tokenizer = zen.BertTokenizer.from_pretrained(args.bert_model, do_lower_case=args.do_lower_case)
-            self.zen_ngram_dict = zen.ZenNgramDict(args.bert_model, tokenizer=self.zen_tokenizer)
-            self.zen = zen.modeling.ZenModel.from_pretrained(args.bert_model, cache_dir=cache_dir)
+        elif self.hpara['use_zen']:
+            if args.do_train:
+                cache_dir = args.cache_dir if args.cache_dir else os.path.join(str(zen.PYTORCH_PRETRAINED_BERT_CACHE),
+                                                                               'distributed_{}'.format(args.local_rank))
+                self.zen_tokenizer = zen.BertTokenizer.from_pretrained(args.bert_model, do_lower_case=self.hpara['do_lower_case'])
+                self.zen_ngram_dict = zen.ZenNgramDict(args.bert_model, tokenizer=self.zen_tokenizer)
+                self.zen = zen.modeling.ZenModel.from_pretrained(args.bert_model, cache_dir=cache_dir)
+                self.hpara['zen_tokenizer'] = self.zen_tokenizer
+                self.hpara['zen_ngram_dict'] = self.zen_ngram_dict
+                self.hpara['config'] = self.zen.config
+            else:
+                self.zen_tokenizer = self.hpara['zen_tokenizer']
+                self.zen_ngram_dict = self.hpara['zen_ngram_dict']
+                self.zen = zen.modeling.ZenModel(self.hpapra['config'])
             hidden_size = self.zen.config.hidden_size
             self.dropout = nn.Dropout(self.zen.config.hidden_dropout_prob)
         else:
             raise ValueError()
 
-        if args.use_attention:
+        if self.hpara['use_attention']:
             self.context_attention = Attention(hidden_size, len(self.gram2id))
             self.feature_attention = Attention(hidden_size, len(self.feature2id))
             self.classifier = nn.Linear(hidden_size * 3, self.num_labels, bias=False)
@@ -103,9 +129,26 @@ class TwASP(nn.Module):
             self.feature_attention = None
             self.classifier = nn.Linear(hidden_size, self.num_labels, bias=False)
 
-        self.crf = CRF(tagset_size=self.num_labels-3, gpu=True)
-   
-    def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None, valid_ids=None, attention_mask_label=None,
+        self.crf = CRF(tagset_size=self.num_labels - 3, gpu=True)
+
+        if args.do_train:
+            self.spec['hpara'] = self.hpara
+
+    @staticmethod
+    def init_hyper_parameters(args):
+        hyper_parameters = DEFAULT_HPARA.copy()
+        hyper_parameters['max_seq_length'] = args.max_seq_length
+        hyper_parameters['max_ngram_size'] = args.max_ngram_size
+        hyper_parameters['use_bert'] = args.use_bert
+        hyper_parameters['use_zen'] = args.use_zen
+        hyper_parameters['do_lower_case'] = args.do_lower_case
+        hyper_parameters['use_attention'] = args.use_attention
+        hyper_parameters['feature_flag'] = args.feature_flag
+        hyper_parameters['source'] = args.source
+        return hyper_parameters
+
+    def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None, valid_ids=None,
+                attention_mask_label=None,
                 word_seq=None, feature_seq=None, word_matrix=None, feature_matrix=None,
                 input_ngram_ids=None, ngram_position_matrix=None):
 
@@ -140,26 +183,16 @@ class TwASP(nn.Module):
         return self.state_dict()
 
     @classmethod
-    def from_spec(cls, spec, model):
+    def from_spec(cls, spec, model, args):
         spec = spec.copy()
-        # args = spec['args']
-        #
-        # spec['args'] = nkutil.HParams(**hparams)
-        res = cls(**spec)
-        # if use_cuda:
-        #     res.cpu()
-        # if not hparams['use_elmo']:
+        res = cls(args=args, **spec)
         res.load_state_dict(model)
-        # else:
-        #     state = {k: v for k,v in res.state_dict().items() if k not in model}
-        #     state.update(model)
-        #     res.load_state_dict(state)
-        # if use_cuda:
-        #     res.cuda()
         return res
 
-    def load_data(self, data_path, flag):
+    def load_data(self, data_path):
         lines = readfile(data_path)
+
+        flag = data_path[data_path.rfind('/')+1: data_path.rfind('.')]
 
         data = []
         if self.feature_flag is None:
@@ -279,7 +312,8 @@ class TwASP(nn.Module):
             raise ValueError()
 
         examples = []
-        for i, (sentence, label, word_list, syn_feature_list, word_matching_position, syn_matching_position) in enumerate(data):
+        for i, (
+        sentence, label, word_list, syn_feature_list, word_matching_position, syn_matching_position) in enumerate(data):
             guid = "%s-%s" % (flag, i)
             text_a = ' '.join(sentence)
             text_b = None
@@ -446,7 +480,8 @@ class TwASP(nn.Module):
 
                 random.shuffle(ngram_matches)
 
-                max_ngram_in_seq_proportion = math.ceil((len(tokens) / max_seq_length) * self.zen_ngram_dict.max_ngram_in_seq)
+                max_ngram_in_seq_proportion = math.ceil(
+                    (len(tokens) / max_seq_length) * self.zen_ngram_dict.max_ngram_in_seq)
                 if len(ngram_matches) > max_ngram_in_seq_proportion:
                     ngram_matches = ngram_matches[:max_ngram_in_seq_proportion]
 
@@ -460,7 +495,8 @@ class TwASP(nn.Module):
                 ngram_mask_array[:len(ngram_ids)] = 1
 
                 # record the masked positions
-                ngram_positions_matrix = np.zeros(shape=(max_seq_length, self.zen_ngram_dict.max_ngram_in_seq), dtype=np.int32)
+                ngram_positions_matrix = np.zeros(shape=(max_seq_length, self.zen_ngram_dict.max_ngram_in_seq),
+                                                  dtype=np.int32)
                 for i in range(len(ngram_ids)):
                     ngram_positions_matrix[ngram_positions[i]:ngram_positions[i] + ngram_lengths[i], i] = 1.0
 
@@ -496,6 +532,47 @@ class TwASP(nn.Module):
                               ngram_masks=ngram_mask_array
                               ))
         return features
+
+    def feature2input(self, device, feature):
+        all_input_ids = torch.tensor([f.input_ids for f in feature], dtype=torch.long)
+        all_input_mask = torch.tensor([f.input_mask for f in feature], dtype=torch.long)
+        all_segment_ids = torch.tensor([f.segment_ids for f in feature], dtype=torch.long)
+        all_label_ids = torch.tensor([f.label_id for f in feature], dtype=torch.long)
+        all_valid_ids = torch.tensor([f.valid_ids for f in feature], dtype=torch.long)
+        all_lmask_ids = torch.tensor([f.label_mask for f in feature], dtype=torch.long)
+
+        input_ids = all_input_ids.to(device)
+        input_mask = all_input_mask.to(device)
+        segment_ids = all_segment_ids.to(device)
+        label_ids = all_label_ids.to(device)
+        valid_ids = all_valid_ids.to(device)
+        l_mask = all_lmask_ids.to(device)
+        if self.hpara['use_attention']:
+            all_word_ids = torch.tensor([f.word_ids for f in feature], dtype=torch.long)
+            all_feature_ids = torch.tensor([f.syn_feature_ids for f in feature], dtype=torch.long)
+            all_word_matching_matrix = torch.tensor([f.word_matching_matrix for f in feature],
+                                                    dtype=torch.float)
+
+            word_ids = all_word_ids.to(device)
+            feature_ids = all_feature_ids.to(device)
+            word_matching_matrix = all_word_matching_matrix.to(device)
+        else:
+            word_ids = None
+            feature_ids = None
+            word_matching_matrix = None
+        if self.hpara['use_zen']:
+            all_ngram_ids = torch.tensor([f.ngram_ids for f in feature], dtype=torch.long)
+            all_ngram_positions = torch.tensor([f.ngram_positions for f in feature], dtype=torch.long)
+            # all_ngram_lengths = torch.tensor([f.ngram_lengths for f in train_features], dtype=torch.long)
+            # all_ngram_seg_ids = torch.tensor([f.ngram_seg_ids for f in train_features], dtype=torch.long)
+            # all_ngram_masks = torch.tensor([f.ngram_masks for f in train_features], dtype=torch.long)
+
+            ngram_ids = all_ngram_ids.to(device)
+            ngram_positions = all_ngram_positions.to(device)
+        else:
+            ngram_ids = None
+            ngram_positions = None
+        return feature_ids, input_ids, input_mask, l_mask, label_ids, ngram_ids, ngram_positions, segment_ids, valid_ids, word_ids, word_matching_matrix
 
 
 class InputExample(object):
@@ -556,9 +633,9 @@ def readfile(filename):
     f = open(filename)
     data = []
     sentence = []
-    label= []
+    label = []
     for line in f:
-        if len(line)==0 or line.startswith('-DOCSTART') or line[0]=="\n":
+        if len(line) == 0 or line.startswith('-DOCSTART') or line[0] == "\n":
             if len(sentence) > 0:
                 data.append((sentence, label))
                 sentence = []
@@ -571,8 +648,8 @@ def readfile(filename):
         sentence.append(char)
         label.append(l)
 
-    if len(sentence) >0:
-        data.append((sentence,label))
+    if len(sentence) > 0:
+        data.append((sentence, label))
         sentence = []
         label = []
     return data

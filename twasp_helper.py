@@ -97,8 +97,10 @@ def merge_results(results):
     return merged
 
 
-def request_features_from_stanford(data_path, flag):
+def request_features_from_stanford(data_path):
     data_dir = data_path[:data_path.rfind('/')]
+    flag = data_path[data_path.rfind('/') + 1: data_path.rfind('.')]
+
     if os.path.exists(path.join(data_dir, flag + '.stanford.json')):
         print('The Stanford data file for %s already exists!' % str(data_path))
         return None
@@ -124,8 +126,9 @@ def request_features_from_stanford(data_path, flag):
             f.write('\n')
 
 
-def request_features_from_berkeley(data_path, flag):
+def request_features_from_berkeley(data_path):
     data_dir = data_path[:data_path.rfind('/')]
+    flag = data_path[data_path.rfind('/') + 1: data_path.rfind('.')]
 
     if not os.path.exists(path.join(data_dir, flag + '.stanford.json')):
         print('Do not find the Stanford data file\nRequesting Stanford segmentation results for %s' % str(data_path))
