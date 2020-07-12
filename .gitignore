@@ -8,3 +8,6 @@
 /data_preprocessing/LDC07T36/
 /data_preprocessing/LDC10T07/
 /tmp/
+twasp.convert.sh
+twasp_convert.py
+test.sh
