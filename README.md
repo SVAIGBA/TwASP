@@ -80,7 +80,7 @@ Here are some important parameters:
 
 ## To-do List
 
-* Implement `predict` function in `wmseg_main.py`
+* Implement `predict` function in `twasp_main.py`
 
 You can leave comments in the `Issues` section, if you want us to implement any functions.
 
