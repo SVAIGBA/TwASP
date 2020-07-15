@@ -78,9 +78,22 @@ Here are some important parameters:
 * `--feature_flag`: use `pos`, `chunk`, or `dep` knowledge
 * `--model_name`: the name of model to save 
 
+## Predicting
+
+`run_sample.sh` contains the command line to segment and tag the sentences in an input file ([./sample_data/sentence.txt](./sample_data/sentence.txt)).
+
+Here are some important parameters:
+
+* `--do_predict`: segment and tag the sentences using a pre-trained TwASP model.
+* `--input_file`: the file contains sentences to be segmented and tagged. Each line contains one sentence; you can refer to [a sample input file](./sample_data/sentence.txt) for the input format.
+* `--output_file`: the path of the output file. Words are segmented by a space; POS labels are attached to the resulting words by an underline ("_").
+* `--eval_model`: the pre-trained WMSeg model to be used to segment the sentences in the input file.
+
+To run a pre-trained TwASP model, you need to install SCT and BNP to obtain the auto-analyzed syntactic knowledge. See [data_processing](./data_preprocessing) for more information to download the two toolkits.
+
 ## To-do List
 
-* Implement `predict` function in `twasp_main.py`
+* Regular maintenance
 
 You can leave comments in the `Issues` section, if you want us to implement any functions.
 

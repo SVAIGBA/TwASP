@@ -189,8 +189,12 @@ class TwASP(nn.Module):
         res.load_state_dict(model)
         return res
 
-    def load_data(self, data_path):
-        lines = readfile(data_path)
+    def load_data(self, data_path, do_predict=False):
+
+        if do_predict:
+            lines = read_sentence(data_path)
+        else:
+            lines = readfile(data_path)
 
         flag = data_path[data_path.rfind('/')+1: data_path.rfind('.')]
 
@@ -654,3 +658,16 @@ def readfile(filename):
         label = []
     return data
 
+
+def read_sentence(filename):
+    data = []
+    with open(filename, 'r', encoding='utf8') as f:
+        lines = f.readlines()
+        for line in lines:
+            line = line.strip()
+            if line == '':
+                continue
+            sentence = [char for char in line]
+            label = ['<UNK>' for _ in sentence]
+            data.append((sentence, label))
+    return data

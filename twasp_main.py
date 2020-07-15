@@ -480,8 +480,93 @@ def test(args):
 
 
 def predict(args):
-    # In progressing
-    return None
+
+    if args.local_rank == -1 or args.no_cuda:
+        device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
+        n_gpu = torch.cuda.device_count()
+    else:
+        torch.cuda.set_device(args.local_rank)
+        device = torch.device("cuda", args.local_rank)
+        n_gpu = 1
+        # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
+        torch.distributed.init_process_group(backend='nccl')
+    print("device: {} n_gpu: {}, distributed training: {}, 16-bits training: {}".format(
+        device, n_gpu, bool(args.local_rank != -1), args.fp16))
+
+    joint_model_checkpoint = torch.load(args.eval_model)
+    joint_model = TwASP.from_spec(joint_model_checkpoint['spec'], joint_model_checkpoint['state_dict'], args)
+
+    if joint_model.use_attention:
+        if joint_model.source == 'stanford':
+            request_features_from_stanford(args.input_file, do_predict=True)
+        elif joint_model.source == 'berkeley':
+            request_features_from_berkeley(args.input_file, do_predict=True)
+        else:
+            raise ValueError('Invalid source $s. '
+                             'Source must be one of \'stanford\' or \'berkeley\' if attentions are used.'
+                             % joint_model.source)
+
+    eval_examples = joint_model.load_data(args.input_file, do_predict=True)
+    convert_examples_to_features = joint_model.convert_examples_to_features
+    feature2input = joint_model.feature2input
+    num_labels = joint_model.num_labels
+    word2id = joint_model.word2id
+    label_map = {v: k for k, v in joint_model.labelmap.items()}
+    label_map[0] = 'O'
+
+    if args.fp16:
+        joint_model.half()
+    joint_model.to(device)
+    if args.local_rank != -1:
+        try:
+            from apex.parallel import DistributedDataParallel as DDP
+        except ImportError:
+            raise ImportError(
+                "Please install apex from https://www.github.com/nvidia/apex to use distributed and fp16 training.")
+
+        joint_model = DDP(joint_model)
+    elif n_gpu > 1:
+        joint_model = torch.nn.DataParallel(joint_model)
+
+    joint_model.to(device)
+
+    joint_model.eval()
+    y_pred = []
+
+    for start_index in tqdm(range(0, len(eval_examples), args.eval_batch_size)):
+        eval_batch_examples = eval_examples[start_index: min(start_index + args.eval_batch_size,
+                                                             len(eval_examples))]
+        eval_features = convert_examples_to_features(eval_batch_examples)
+
+        feature_ids, input_ids, input_mask, l_mask, label_ids, ngram_ids, ngram_positions, \
+        segment_ids, valid_ids, word_ids, word_matching_matrix = feature2input(device, eval_features)
+
+        with torch.no_grad():
+            _, tag_seq = joint_model(input_ids, segment_ids, input_mask, label_ids, valid_ids, l_mask,
+                                     word_ids, feature_ids, word_matching_matrix, word_matching_matrix,
+                                     ngram_ids, ngram_positions)
+
+        logits = tag_seq.to('cpu').numpy()
+        label_ids = label_ids.to('cpu').numpy()
+
+        for i, label in enumerate(label_ids):
+            temp = []
+            for j, m in enumerate(label):
+                if j == 0:
+                    continue
+                elif label_ids[i][j] == num_labels - 1:
+                    y_pred.append(temp)
+                    break
+                else:
+                    temp.append(label_map[logits[i][j]])
+
+    print('write results to %s' % str(args.output_file))
+    with open(args.output_file, 'w') as writer:
+        for i in range(len(y_pred)):
+            sentence = eval_examples[i].text_a
+            _, seg_pred_str = eval_sentence(y_pred[i], None, sentence, word2id)
+            writer.write('%s\n' % seg_pred_str)
+
 
 
 def main():

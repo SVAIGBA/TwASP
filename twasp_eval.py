@@ -1,39 +1,49 @@
-from seqeval.metrics import classification_report, f1_score, precision_score, recall_score
+from seqeval.metrics import f1_score, precision_score, recall_score
+
 
 def eval_sentence(y_pred, y, sentence, word2id):
     words = sentence.split(' ')
-    seg_true = []
+
+    if y is not None:
+        seg_true = []
+        word_true = ''
+        y_word = []
+        y_pos = []
+        for y_label in y:
+            y_word.append(y_label[0])
+            y_pos.append(y_label[2:])
+
+        for i in range(len(y_word)):
+            word_true += words[i]
+            if y_word[i] in ['S', 'E']:
+                pos_tag_true = y_pos[i]
+                word_pos_true = word_true + '_' + pos_tag_true
+                if word_true not in word2id:
+                    word_pos_true = '*' + word_pos_true + '*'
+                seg_true.append(word_pos_true)
+                word_true = ''
+
+        seg_true_str = ' '.join(seg_true)
+    else:
+        seg_true_str = None
+
     seg_pred = []
-    word_true = ''
     word_pred = ''
 
-    y_word = []
-    y_pos = []
     y_pred_word = []
     y_pred_pos = []
-    for y_label, y_pred_label in zip(y, y_pred):
-        y_word.append(y_label[0])
-        y_pos.append(y_label[2:])
+    for y_pred_label in y_pred:
         y_pred_word.append(y_pred_label[0])
         y_pred_pos.append(y_pred_label[2:])
 
-    for i in range(len(y_word)):
-        word_true += words[i]
+    for i in range(len(y_pred_word)):
         word_pred += words[i]
-        if y_word[i] in ['S', 'E']:
-            pos_tag_true = y_pos[i]
-            word_pos_true = word_true + '_' + pos_tag_true
-            if word_true not in word2id:
-                word_pos_true = '*' + word_pos_true + '*'
-            seg_true.append(word_pos_true)
-            word_true = ''
         if y_pred_word[i] in ['S', 'E']:
             pos_tag_pred = y_pred_pos[i]
             word_pos_pred = word_pred + '_' + pos_tag_pred
             seg_pred.append(word_pos_pred)
             word_pred = ''
 
-    seg_true_str = ' '.join(seg_true)
     seg_pred_str = ' '.join(seg_pred)
     return seg_true_str, seg_pred_str
 

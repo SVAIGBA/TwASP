@@ -42,6 +42,19 @@ def read_tsv(file_path):
     return sentence_list, label_list
 
 
+def read_sentence(file_path):
+    sentence = []
+    with open(file_path, 'r', encoding='utf8') as f:
+        lines = f.readlines()
+        for line in lines:
+            line = line.strip()
+            if line == '':
+                continue
+            sentence.append([char for char in line])
+
+    return sentence, None
+
+
 def get_word2id(train_path):
     word2id = {'<PAD>': 0}
     word = ''
@@ -97,7 +110,7 @@ def merge_results(results):
     return merged
 
 
-def request_features_from_stanford(data_path):
+def request_features_from_stanford(data_path, do_predict=False):
     data_dir = data_path[:data_path.rfind('/')]
     flag = data_path[data_path.rfind('/') + 1: data_path.rfind('.')]
 
@@ -107,7 +120,10 @@ def request_features_from_stanford(data_path):
 
     print('Requesting Stanford results for %s' % str(data_path))
 
-    all_sentences, _ = read_tsv(data_path)
+    if do_predict:
+        all_sentences, _ = read_sentence(data_path)
+    else:
+        all_sentences, _ = read_tsv(data_path)
     sentences_str = []
     for sentence in all_sentences:
         sentences_str.append(''.join(sentence))
@@ -126,13 +142,13 @@ def request_features_from_stanford(data_path):
             f.write('\n')
 
 
-def request_features_from_berkeley(data_path):
+def request_features_from_berkeley(data_path, do_predict=False):
     data_dir = data_path[:data_path.rfind('/')]
     flag = data_path[data_path.rfind('/') + 1: data_path.rfind('.')]
 
     if not os.path.exists(path.join(data_dir, flag + '.stanford.json')):
         print('Do not find the Stanford data file\nRequesting Stanford segmentation results for %s' % str(data_path))
-        request_features_from_stanford(data_path, flag)
+        request_features_from_stanford(data_path, do_predict=do_predict)
     else:
         print('The Stanford data file for %s already exists!' % str(data_path))
     if os.path.exists(path.join(data_dir, flag + '.berkeley.json')):
@@ -164,14 +180,7 @@ def request_features_from_berkeley(data_path):
         pos_tags = parse_tree.pos()
 
         for i, (bt, (w, pos)) in enumerate(zip(berkeley_data['tokens'], pos_tags)):
-            # w = w_pos[0]
-            # pos = w_pos[1]
-            # try:
             assert bt['word'] == w
-            # except AssertionError:
-            #     print('error in sentence: %s' % ''.join(word_list))
-            #     print('word error: excepted %s, get %s' % (bt['word'], w))
-            # else:
             berkeley_data['tokens'][i]['pos'] = pos
         berkeley_all_data.append(berkeley_data)
 
@@ -455,70 +464,3 @@ def renew_ngram_by_freq(all_sentences, ngram2count, min_feq, ngram_len=10):
                     new_ngram2count[n_gram] += 1
     new_ngram_dict = {gram: c for gram, c in new_ngram2count.items() if c > min_feq}
     return new_ngram_dict
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument("--dataset",
-                        default=None,
-                        type=str,
-                        required=True,
-                        help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
-
-    args = parser.parse_args()
-    base_min_freq = 1
-    av_threshold = 2
-
-    min_freq = base_min_freq
-
-    print('min freq: %d' % min_freq)
-
-    data_dir = path.join(DATA_DIR, args.dataset)
-
-    print(data_dir)
-
-    # getlabels(data_dir)
-
-    # get_word2id(data_dir)
-
-    # be(data_dir, 0, 10)
-
-    # oov_stat(data_dir, 'train')
-    # oov_stat(data_dir, 'dev')
-    # oov_stat(data_dir, 'test')
-    # request_features_from_stanford(data_dir, 'train')
-    # request_features_from_stanford(data_dir, 'dev')
-    # request_features_from_stanford(data_dir, 'test')
-
-    # request_features_from_stanford(data_dir, 'bc')
-    # request_features_from_stanford(data_dir, 'bn')
-    # request_features_from_stanford(data_dir, 'cs')
-    # request_features_from_stanford(data_dir, 'df')
-    # request_features_from_stanford(data_dir, 'mz')
-    # request_features_from_stanford(data_dir, 'nw')
-    # request_features_from_stanford(data_dir, 'sc')
-    # request_features_from_stanford(data_dir, 'wb')
-
-    # request_features_from_stanford('./data/POS/demo', 'demo')
-
-    # sfp = stanford_feature_processor(data_dir)
-    # sfp._pre_processing()
-    # sfp.read_features('train')
-    # sfp.read_features('test')
-    # sfp.feature_stat()
-
-    # bek = berkeley_feature_processor(data_dir)
-    # bek.request_knoledge('train')
-    # bek.request_knoledge('dev')
-    # bek.request_knoledge('test')
-    # bek.request_knoledge('demo')
-    # bek._pre_processing()
-    # bek.feature_stat()
-
-    # attentionn_gram_stat(data_dir, 0, 10)
-
-    print('')
-
-    # exit()
-
