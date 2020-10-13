@@ -2,7 +2,7 @@
 
 This is the implementation of [Joint Chinese Word Segmentation and Part-of-speech Tagging via Two-way Attentions of Auto-analyzed Knowledge](https://www.aclweb.org/anthology/2020.acl-main.735/) at ACL2020.
 
-You can e-mail Yuanhe Tian at `yhtian@uw.edu` or Guimin Chen at `chenguimin@chuangxin.com`, if you have any questions.
+You can e-mail Yuanhe Tian at `yhtian@uw.edu` or Guimin Chen at `cuhksz.nlp@gmail.com`, if you have any questions.
 
 ## Citation
 
