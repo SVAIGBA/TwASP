@@ -260,11 +260,11 @@ class TwASP(nn.Module):
                     assert current_token in self.gram2id
                     assert current_feature in self.feature2id
 
-                    token_index_list = token['chunk_tags'][-1]['range']
+                    token_index_range = token['chunk_tags'][-1]['range']
                     char_index_list = token['char_index']
 
                     for i in char_index_list:
-                        for j in token_index_list:
+                        for j in range(token_index_range[0], token_index_range[1]):
                             word_matching_position.append((i, j))
                             syn_matching_position.append((i, j))
                     word_matching_position = list(set(word_matching_position))
