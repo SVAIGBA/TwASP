@@ -46,7 +46,7 @@ For BERT, please download pre-trained BERT-Base Chinese from [Google](https://gi
 
 For ZEN, you can download the pre-trained model form [here](https://github.com/sinovation/ZEN).
 
-For TwASP, you can download the models we trained in our experiments from [here](https://github.com/SVAIGBA/TwASP/tree/master/models).
+For TwASP, you can download the models we trained in our experiments from [here](https://github.com/SVAIGBA/TwASP/tree/master/models). **Note**: since we have improved the code, to reproduce the results in our paper, please check out [this version](https://github.com/SVAIGBA/TwASP/tree/cc7a4dfc2a78db98d7414755babd82c6ca98fba0) of our code.
 
 ## Run on Sample Data
 
