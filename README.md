@@ -4,6 +4,12 @@ This is the implementation of [Joint Chinese Word Segmentation and Part-of-speec
 
 Please contact us at `yhtian@uw.edu` if you have any questions.
 
+**Visit our [homepage](https://github.com/synlp/.github) to find more our recent research and softwares for NLP (e.g., pre-trained LM, POS tagging, NER, sentiment analysis, relation extraction, datasets, etc.).**
+
+## Upgrades of TwASP
+
+We are improving TwASP. For updates, please visit [HERE](https://github.com/synlp/TwASP).
+
 ## Citation
 
 If you use or extend our work, please cite our paper at ACL2020.
